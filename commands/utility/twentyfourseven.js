@@ -1,69 +1,63 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { autoplayCollection } = require('../../mongodb.js');
 const { getLang } = require('../../utils/languageLoader.js');
-const { handleCommandError } = require('../../utils/responseHandler.js');
-
-const data = new SlashCommandBuilder()
-  .setName("247")
-  .setDescription("Toggle 24/7 mode (keep bot in voice channel)")
-  .addBooleanOption(option =>
-    option.setName("enable")
-      .setDescription("Enable or disable 24/7 mode")
-      .setRequired(true)
-  );
 
 module.exports = {
-    data: data,
+    data: new SlashCommandBuilder()
+        .setName("247")
+        .setDescription("Bot ko hamesha voice channel mein rakhein")
+        .addBooleanOption(option =>
+            option.setName("enable")
+                .setDescription("Enable ya Disable karein")
+                .setRequired(true)
+        ),
+
     run: async (client, interaction) => {
         try {
             await interaction.deferReply();
             const lang = await getLang(interaction.guildId);
+            const enable = interaction.options.getBoolean('enable');
 
-            // Access Denied Logic
+            // Sirf Owner hi 24/7 change kar sake
             if (interaction.guild.ownerId !== interaction.user.id) {
-                const errorEmbed = new EmbedBuilder()
+                const noAccess = new EmbedBuilder()
                     .setColor('#ff0000')
-                    .setDescription(`## ❌ Access Denied\n\n${lang.utility.twentyfourseven.accessDenied.message}`);
-
-                const reply = await interaction.editReply({ embeds: [errorEmbed] });
-                setTimeout(() => reply.delete().catch(() => {}), 5000);
-                return;
+                    .setDescription(`❌ **Access Denied:** Sirf Server Owner hi ye kar sakta hai.`);
+                return interaction.editReply({ embeds: [noAccess] });
             }
 
-            const enable = interaction.options.getBoolean('enable');
-            const guildId = interaction.guild.id;
-
-            // Database update
+            // 1. Database Update
             await autoplayCollection.updateOne(
-                { guildId },
+                { guildId: interaction.guild.id },
                 { $set: { twentyfourseven: enable } },
                 { upsert: true }
             );
 
-            // Logic to keep bot in VC (Lavalink player check)
+            // 2. Music Player Update (Lavalink)
+            // Aapka bot 'client.manager' use kar raha hai
             const player = client.manager.get(interaction.guild.id);
             if (player) {
-                player.twentyFourSeven = enable; // Player property update
+                // Professional bots mein player object ke andar ye set karna zaruri hai
+                player.set("247", enable); 
             }
 
-            const embedColor = enable ? '#00ff00' : '#ff0000';
-            const statusText = enable 
-                ? `## ✅ 24/7 Enabled\n\n${lang.utility.twentyfourseven.enabled.message}`
-                : `## ⏹️ 24/7 Disabled\n\n${lang.utility.twentyfourseven.disabled.message}`;
-
+            // 3. Professional Red/Green Response
             const statusEmbed = new EmbedBuilder()
-                .setColor(embedColor)
-                .setDescription(statusText)
-                .setFooter({ text: "Settings updated successfully" });
+                .setColor(enable ? '#00ff00' : '#ff0000')
+                .setTitle(enable ? "✅ 24/7 Mode Enabled" : "⏹️ 24/7 Mode Disabled")
+                .setDescription(enable 
+                    ? "Bot ab voice channel mein **24/7** ruka rahega, chahe queue khali ho." 
+                    : "Bot ab gaana khatam hone par VC chod dega.")
+                .setFooter({ text: `Requested by ${interaction.user.username}` });
 
-            const reply = await interaction.editReply({ embeds: [statusEmbed] });
-            
-            // Auto-delete message to keep chat clean
-            setTimeout(() => reply.delete().catch(() => {}), 5000);
+            const msg = await interaction.editReply({ embeds: [statusEmbed] });
+
+            // 5 seconds baad message delete (Chat clean rakhne ke liye)
+            setTimeout(() => msg.delete().catch(() => {}), 5000);
 
         } catch (error) {
-            console.error(error);
-            return handleCommandError(interaction, error, '247');
+            console.error("247 Command Error:", error);
+            await interaction.editReply({ content: "❌ Kuch galat hua, please check console." });
         }
     }
 };
