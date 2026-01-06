@@ -1,7 +1,8 @@
 const { Riffy, Player } = require("riffy");
 const { ContainerBuilder, SeparatorBuilder, SeparatorSpacingSize, SectionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, PermissionsBitField, MessageFlags, MediaGalleryBuilder, MediaGalleryItemBuilder } = require("discord.js");
 const { requesters } = require("./commands/music/play");
-const { EnhancedMusicCard } = require("./utils/musicCard");
+const MusicCard = require("./utils/musicCard");
+const musicCard = new MusicCard();
 const config = require("./config.js");
 const musicIcons = require('./UI/icons/musicicons.js');
 const colors = require('./UI/colors/colors');
