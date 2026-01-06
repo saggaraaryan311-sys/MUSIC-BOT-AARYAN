@@ -227,14 +227,20 @@ async function initializePlayer(client) {
                 }
                 
                 const cardBuffer = await musicCard.generateCard({
-                    thumbnailURL: thumbnailURL,
-                    trackURI: trackUri, // Pass URI separately for YouTube ID extraction
-                    songTitle: track.info.title,
-                    songArtist: track.info.author || 'Unknown Artist',
-                    trackRequester: requester,
-                    isPlaying: true,
-                    showVisualizer: config.showVisualizer !== false,
-                });
+    thumbnailURL: thumbnailURL,
+    trackURI: trackUri,
+
+    songTitle: track.info.title,
+    songArtist: track.info.author || 'Unknown Artist',
+    trackRequester: requester,
+
+    // ✅ ADD THESE
+    serverName: channel.guild.name,
+    volume: player.volume,
+
+    isPlaying: true,
+    showVisualizer: config.showVisualizer !== false,
+});
 
                 const cardPath = path.join(__dirname, 'musicard.png');
                 await fs.writeFile(cardPath, cardBuffer);
