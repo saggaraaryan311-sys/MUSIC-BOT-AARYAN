@@ -1,6 +1,4 @@
-const { SlashCommandBuilder, ContainerBuilder, MessageFlags } = require('discord.js');
-const config = require('../../config.js');
-const musicIcons = require('../../UI/icons/musicicons.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { autoplayCollection } = require('../../mongodb.js');
 const { getLang } = require('../../utils/languageLoader.js');
 const { handleCommandError } = require('../../utils/responseHandler.js');
@@ -21,63 +19,51 @@ module.exports = {
             await interaction.deferReply();
             const lang = await getLang(interaction.guildId);
 
+            // Access Denied Logic
             if (interaction.guild.ownerId !== interaction.user.id) {
-                const errorContainer = new ContainerBuilder()
-                    .setAccentColor(0xff0000)
-                    .addTextDisplayComponents(
-                        (textDisplay) => textDisplay.setContent(
-                            `${lang.utility.twentyfourseven.accessDenied.title}\n\n` +
-                            `${lang.utility.twentyfourseven.accessDenied.message}`
-                        )
-                    );
+                const errorEmbed = new EmbedBuilder()
+                    .setColor('#ff0000')
+                    .setDescription(`## ❌ Access Denied\n\n${lang.utility.twentyfourseven.accessDenied.message}`);
 
-                const reply = await interaction.editReply({
-                    components: [errorContainer],
-                    flags: MessageFlags.IsComponentsV2,
-                });
-                setTimeout(() => reply.delete().catch(() => {}), 3000);
-                return reply;
+                const reply = await interaction.editReply({ embeds: [errorEmbed] });
+                setTimeout(() => reply.delete().catch(() => {}), 5000);
+                return;
             }
 
             const enable = interaction.options.getBoolean('enable');
             const guildId = interaction.guild.id;
 
+            // Database update
             await autoplayCollection.updateOne(
                 { guildId },
                 { $set: { twentyfourseven: enable } },
                 { upsert: true }
             );
 
-            const embedColor = parseInt((enable ? '#00ff00' : '#ff0000').replace('#', ''), 16);
-            const components = [];
+            // Logic to keep bot in VC (Lavalink player check)
+            const player = client.manager.get(interaction.guild.id);
+            if (player) {
+                player.twentyFourSeven = enable; // Player property update
+            }
 
+            const embedColor = enable ? '#00ff00' : '#ff0000';
             const statusText = enable 
-                ? `${lang.utility.twentyfourseven.enabled.title}\n\n${lang.utility.twentyfourseven.enabled.message}\n\n${lang.utility.twentyfourseven.enabled.note}`
-                : `${lang.utility.twentyfourseven.disabled.title}\n\n${lang.utility.twentyfourseven.disabled.message}\n\n${lang.utility.twentyfourseven.disabled.note}`;
+                ? `## ✅ 24/7 Enabled\n\n${lang.utility.twentyfourseven.enabled.message}`
+                : `## ⏹️ 24/7 Disabled\n\n${lang.utility.twentyfourseven.disabled.message}`;
 
-            const statusContainer = new ContainerBuilder()
-                .setAccentColor(embedColor)
-                .addTextDisplayComponents(
-                    (textDisplay) => textDisplay.setContent(statusText)
-                );
+            const statusEmbed = new EmbedBuilder()
+                .setColor(embedColor)
+                .setDescription(statusText)
+                .setFooter({ text: "Settings updated successfully" });
 
-            components.push(statusContainer);
-
-            const reply = await interaction.editReply({
-                components: components,
-                flags: MessageFlags.IsComponentsV2,
-                fetchReply: true
-            });
-            setTimeout(() => reply.delete().catch(() => {}), 3000);
-            return reply;
+            const reply = await interaction.editReply({ embeds: [statusEmbed] });
+            
+            // Auto-delete message to keep chat clean
+            setTimeout(() => reply.delete().catch(() => {}), 5000);
 
         } catch (error) {
-            return handleCommandError(
-                interaction,
-                error,
-                '247',
-                null
-            );
+            console.error(error);
+            return handleCommandError(interaction, error, '247');
         }
     }
 };
