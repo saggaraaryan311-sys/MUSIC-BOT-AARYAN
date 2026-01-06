@@ -1,4 +1,7 @@
 const { createCanvas, loadImage } = require("@napi-rs/canvas");
+const serverName = options.serverName || "Unknown Server";
+const volume = typeof options.volume === "number" ? options.volume : 100;
+
 
 class musicCard {
     async generate(options) {
